@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>💘 Valentine Cup</title>
+  <style>
+    :root{
+      --bg1:#ffdde1; --bg2:#ee9ca7;
+      --ink:#3b0a12;
+      --glass: rgba(255,255,255,0.78);
+      --shadow: 0 20px 60px rgba(0,0,0,0.15);
+      --r: 24px;
+    }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    body{
+      margin:0; min-height:100vh;
+      display:grid; place-items:center;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top, var(--bg1), var(--bg2));
+      color:var(--ink);
+      overflow:hidden;
+      touch-action: pan-y;
+    }
+    .wrap{ width:min(980px, 94vw); padding:16px; }
+    .card{
+      background: var(--glass);
+      border-radius: var(--r);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      position: relative;
+    }
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; margin-bottom: 10px;
+    }
+    .round{ font-weight: 950; letter-spacing: 0.6px; font-size: clamp(22px, 3.2vw, 34px); }
+    .subtitle{ opacity:.75; font-weight:700; text-align:right; }
+
+    h1{
+      margin: 10px 0 12px;
+      font-size: clamp(26px, 4vw, 42px);
+      line-height: 1.12;
+      text-align:center;
+    }
+    .hint{
+      text-align:center;
+      font-weight:800;
+      opacity:.78;
+      margin: 0 0 14px;
+      user-select:none;
+    }
+
+    .arena{
+      position: relative;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-items: stretch;
+      min-height: 320px;
+      overflow: hidden;
+      border-radius: 22px;
+    }
+
+    .pick{
+      border:0;
+      border-radius: 22px;
+      padding: 0;
+      cursor:pointer;
+      background: rgba(255,255,255,0.60);
+      box-shadow: 0 12px 26px rgba(0,0,0,0.12);
+      overflow:hidden;
+      min-height: 280px;
+      display:flex;
+      flex-direction: column;
+      transition: transform .12s ease, box-shadow .12s ease;
+      position: relative;
+    }
+    .pick:active{ transform: scale(0.99); }
+
+    .photo{
+      width:100%;
+      aspect-ratio: 4/5;
+      background: rgba(255,255,255,0.6);
+      position: relative;
+      overflow:hidden;
+    }
+    .photo img{
+      width:100%; height:100%;
+      object-fit: cover;
+      display:block;
+    }
+    .photo .fallback{
+      position:absolute; inset:0;
+      display:grid; place-items:center;
+      font-size: 48px; font-weight: 950;
+      opacity: .7;
+    }
+
+    .meta{
+      padding: 12px 12px 14px;
+      display:flex;
+      flex-direction:column;
+      gap: 2px;
+    }
+    .name{ font-size: 18px; font-weight: 950; margin:0; }
+    .tag{ margin:0; opacity:.74; font-weight:700; font-size: 14px; }
+
+    .actions{
+      display:flex; justify-content:center;
+      gap:10px; flex-wrap:wrap;
+      margin-top: 12px;
+    }
+    .btn{
+      border:0;
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-weight: 900;
+      cursor:pointer;
+      background: rgba(255,255,255,0.85);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+    }
+    .primary{
+      background: linear-gradient(135deg,#34d399,#10b981);
+      color:white;
+    }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      top: max(14px, env(safe-area-inset-top));
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.78);
+      color: white;
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-weight: 950;
+      letter-spacing: 0.4px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.25);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease, transform .15s ease;
+      z-index: 50;
+      text-align:center;
+    }
+    .toast.show{ opacity: 1; transform: translateX(-50%) translateY(4px); }
+
+    .shake{ animation: shake .35s ease; }
+    @keyframes shake{
+      0%{ transform: translateX(0); }
+      25%{ transform: translateX(-10px); }
+      50%{ transform: translateX(10px); }
+      75%{ transform: translateX(-6px); }
+      100%{ transform: translateX(0); }
+    }
+
+    .hearts{
+      position: fixed; inset:0;
+      pointer-events:none;
+      z-index: 1;
+    }
+
+    /* Swipe overlay card */
+    .swipe-layer{
+      position:absolute;
+      inset:0;
+      z-index: 10;
+      display:none;
+      pointer-events:none; /* we capture pointer on arena */
+    }
+    .swipe-layer.active{ display:block; }
+
+    .swipe-card{
+      position:absolute;
+      left:0; top:0;
+      width:100%; height:100%;
+      border-radius: 22px;
+      overflow:hidden;
+      background: rgba(255,255,255,0.7);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+      transform: translateX(0) rotate(0deg);
+      will-change: transform;
+    }
+
+    .badge{
+      position:absolute;
+      top: 14px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-weight: 950;
+      letter-spacing: 1px;
+      background: rgba(0,0,0,0.70);
+      color: white;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity .08s ease, transform .08s ease;
+      user-select:none;
+    }
+    .badge.left { left: 14px; }
+    .badge.right{ right: 14px; }
+
+    @media (max-width: 520px){
+      .arena{ gap:10px; min-height: 300px; }
+      .pick{ min-height: 240px; }
+      .name{ font-size: 16px; }
+      .tag{ font-size: 13px; }
+      .hint{ font-size: 14px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hearts" id="hearts"></div>
+  <div class="toast" id="toast">WRONG 😈</div>
+
+  <div class="wrap">
+    <div class="card" id="app"></div>
+  </div>
+
+<script>
+  // Put your photo in the same folder as this HTML, named "me.jpg"
+  const ME_IMAGE = "me.jpg";
+
+  // Real celeb photos (Wikimedia). Needs internet to load.
+  const CELEB_IMAGES = {
+    brad: "https://commons.wikimedia.org/wiki/Special:FilePath/Brad%20Pitt%202008.jpg?width=900",
+    ian:  "https://commons.wikimedia.org/wiki/Special:FilePath/Ian%20Somerhalder%2001%20(16650082905).jpg?width=900",
+    mark: "https://commons.wikimedia.org/wiki/Special:FilePath/Mark-rutte-portret.jpg?width=900",
+  };
+
+  const rounds = [
+    {
+      roundTitle: "ROUND 1",
+      question: "Choose your valentine for this year 💘🥺",
+      left:  { key:"me",   name:"Catalin 😌", tag:"Trusted. Verified. Boyfriend material.", img: ME_IMAGE, emoji:"😌" },
+      right: { key:"brad", name:"Brad Pitt", tag:"Handsome… but not YOUR handsome.", img: CELEB_IMAGES.brad, emoji:"🎬" }
+    },
+    {
+      roundTitle: "ROUND 2",
+      question: "Ok ok… but choose wisely this time 😇",
+      left:  { key:"me",  name:"Catalin 😌", tag:"Still here. Still correct.", img: ME_IMAGE, emoji:"😌" },
+      right: { key:"ian", name:"Ian Somerhalder", tag:"Blue eyes propaganda.", img: CELEB_IMAGES.ian, emoji:"🧛‍♂️" }
+    },
+    {
+      roundTitle: "FINAL ROUND",
+      question: "Final boss. Don’t fumble. 😤",
+      left:  { key:"me",   name:"Catalin 😌", tag:"The only correct answer.", img: ME_IMAGE, emoji:"😌" },
+      right: { key:"mark", name:"Mark Rutte", tag:"Be serious.", img: CELEB_IMAGES.mark, emoji:"🧠" },
+      isFinal: true
+    }
+  ];
+
+  const app = document.getElementById("app");
+  const toast = document.getElementById("toast");
+  const heartsLayer = document.getElementById("hearts");
+
+  let stage = "intro";
+  let roundIdx = 0;
+
+  function haptic(type="light"){
+    // Safari iOS supports navigator.vibrate on some devices; if blocked, it simply does nothing.
+    if (!("vibrate" in navigator)) return;
+    if (type === "wrong") navigator.vibrate([40, 40, 60]);
+    else navigator.vibrate(20);
+  }
+
+  function showToast(text){
+    toast.textContent = text;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 900);
+  }
+
+  function spawnHearts(n=80){
+    for(let i=0;i<n;i++){
+      const el = document.createElement("div");
+      el.textContent = Math.random() > 0.5 ? "💖" : "💘";
+      el.style.position = "fixed";
+      el.style.left = `${Math.random()*100}vw`;
+      el.style.top = `-12px`;
+      el.style.fontSize = `${16 + Math.random()*26}px`;
+      el.style.opacity = "1";
+      el.style.transition = "transform 2.2s linear, top 2.2s linear, opacity 2.2s linear";
+      heartsLayer.appendChild(el);
+
+      requestAnimationFrame(() => {
+        el.style.top = "110vh";
+        el.style.transform = `rotate(${(Math.random()*360)|0}deg)`;
+        el.style.opacity = "0";
+      });
+
+      setTimeout(()=> el.remove(), 2400);
+    }
+  }
+
+  function renderIntro(){
+    app.innerHTML = `
+      <div class="topbar">
+        <div class="round">💘 VALENTINE CUP</div>
+        <div class="subtitle">Swipe edition<br/>1v1 • rounds</div>
+      </div>
+
+      <h1>Danuta, ready to choose your valentine? 💘</h1>
+
+      <p class="hint">Swipe <b>left</b> for left • Swipe <b>right</b> for right (tap also works)</p>
+
+      <div class="actions">
+        <button class="btn primary" id="startBtn">Start ▶️</button>
+      </div>
+
+      <p style="text-align:center;opacity:.72;font-weight:750;margin:14px 0 0">
+        (Wrong answers will be… corrected.)
+      </p>
+    `;
+
+    document.getElementById("startBtn").onclick = () => {
+      stage = "round";
+      roundIdx = 0;
+      renderRound();
+    };
+  }
+
+  function safeImgHTML(p){
+    const emoji = p.emoji ?? "⭐";
+    const img = p.img
+      ? `<img src="${p.img}" alt="${p.name}"
+           onerror="this.remove(); this.parentElement.insertAdjacentHTML('beforeend','<div class=\\'fallback\\'>${emoji}</div>')">`
+      : `<div class="fallback">${emoji}</div>`;
+    return img;
+  }
+
+  function pickMarkup(p){
+    return `
+      <div class="photo">${safeImgHTML(p)}</div>
+      <div class="meta">
+        <p class="name">${p.name}</p>
+        <p class="tag">${p.tag}</p>
+      </div>
+    `;
+  }
+
+  function renderRound(){
+    const r = rounds[roundIdx];
+
+    app.innerHTML = `
+      <div class="topbar">
+        <div class="round">${r.roundTitle}</div>
+        <div class="subtitle">${roundIdx + 1} / ${rounds.length}</div>
+      </div>
+
+      <h1>${r.question}</h1>
+
+      <p class="hint">Swipe <b>left</b> = ${r.left.name} • Swipe <b>right</b> = ${r.right.name}</p>
+
+      <div class="arena" id="arena">
+        <button class="pick" id="leftPick" aria-label="Choose left">
+          ${pickMarkup(r.left)}
+        </button>
+
+        <button class="pick" id="rightPick" aria-label="Choose right">
+          ${pickMarkup(r.right)}
+        </button>
+
+        <div class="swipe-layer" id="swipeLayer" aria-hidden="true">
+          <div class="swipe-card" id="swipeCard">
+            <!-- We will clone either left or right card into here based on swipe direction -->
+          </div>
+          <div class="badge left" id="badgeLeft">LEFT</div>
+          <div class="badge right" id="badgeRight">RIGHT</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="resetBtn">Restart 🔁</button>
+      </div>
+    `;
+
+    const arena = document.getElementById("arena");
+    const swipeLayer = document.getElementById("swipeLayer");
+    const swipeCard  = document.getElementById("swipeCard");
+    const badgeLeft  = document.getElementById("badgeLeft");
+    const badgeRight = document.getElementById("badgeRight");
+
+    document.getElementById("resetBtn").onclick = () => { stage="intro"; renderIntro(); };
+
+    const onPick = (pickedKey) => {
+      const pickedWrong = pickedKey !== "me";
+
+      if (pickedWrong){
+        showToast("WRONG 😈");
+        haptic("wrong");
+
+        arena.classList.remove("shake");
+        void arena.offsetWidth;
+        arena.classList.add("shake");
+
+        if (r.isFinal){
+          setTimeout(() => renderRound(), 650);
+          return;
+        }
+        setTimeout(() => { roundIdx++; renderRound(); }, 650);
+        return;
+      }
+
+      // Picked YOU
+      haptic("light");
+      if (r.isFinal){
+        stage = "win";
+        renderWin();
+      } else {
+        showToast("Correct 😏💘");
+        setTimeout(() => { roundIdx++; renderRound(); }, 520);
+      }
+    };
+
+    // Tap support
+    document.getElementById("leftPick").onclick  = () => onPick(r.left.key);
+    document.getElementById("rightPick").onclick = () => onPick(r.right.key);
+
+    // Swipe support with live dragging + badges + slide-off
+    attachSwipeTinder(arena, {
+      onIntent: (dir, intensity) => {
+        // show badges based on drag
+        swipeLayer.classList.add("active");
+        if (dir === "left"){
+          badgeLeft.style.opacity = String(Math.min(1, intensity));
+          badgeLeft.style.transform = `translateY(${-(1-intensity)*6}px)`;
+          badgeRight.style.opacity = "0";
+        } else {
+          badgeRight.style.opacity = String(Math.min(1, intensity));
+          badgeRight.style.transform = `translateY(${-(1-intensity)*6}px)`;
+          badgeLeft.style.opacity = "0";
+        }
+      },
+      onDrag: (dx, rotDeg) => {
+        // Choose which card to display on overlay based on direction
+        const dir = dx < 0 ? "left" : "right";
+        swipeLayer.classList.add("active");
+        swipeCard.innerHTML = dir === "left" ? pickMarkup(r.left) : pickMarkup(r.right);
+        swipeCard.style.transform = `translateX(${dx}px) rotate(${rotDeg}deg)`;
+      },
+      onCancel: () => {
+        // animate back to center
+        swipeCard.style.transition = "transform 140ms ease";
+        swipeCard.style.transform = "translateX(0px) rotate(0deg)";
+        badgeLeft.style.opacity = "0";
+        badgeRight.style.opacity = "0";
+        setTimeout(() => {
+          swipeCard.style.transition = "";
+          swipeLayer.classList.remove("active");
+        }, 150);
+      },
+      onCommit: (dir, dx, rotDeg) => {
+        // slide off smoothly
+        swipeCard.style.transition = "transform 260ms ease";
+        const offX = (dir === "right" ? 1 : -1) * Math.max(window.innerWidth, 900);
+        swipeCard.style.transform = `translateX(${offX}px) rotate(${rotDeg}deg)`;
+        badgeLeft.style.opacity = "0";
+        badgeRight.style.opacity = "0";
+
+        setTimeout(() => {
+          swipeCard.style.transition = "";
+          swipeLayer.classList.remove("active");
+          // Now register the choice
+          onPick(dir === "left" ? r.left.key : r.right.key);
+        }, 260);
+      }
+    });
+  }
+
+  function renderWin(){
+    app.innerHTML = `
+      <div class="topbar">
+        <div class="round">✅ CHAMPION</div>
+        <div class="subtitle">Correct answer detected</div>
+      </div>
+
+      <h1>Congratulations for choosing your best valentine! Love you, sircoc.</h1>
+
+      <div class="actions">
+        <button class="btn primary" id="moreHearts">More hearts 💖</button>
+        <button class="btn" id="restart">Play again 🔁</button>
+      </div>
+    `;
+
+    spawnHearts(120);
+
+    document.getElementById("moreHearts").onclick = () => spawnHearts(120);
+    document.getElementById("restart").onclick   = () => { stage="intro"; renderIntro(); };
+  }
+
+  // Tinder-ish swipe: card follows finger, shows badges, commits/cancels
+  function attachSwipeTinder(el, handlers){
+    let active=false;
+    let startX=0, startY=0;
+    let lastDx=0;
+
+    const thresholdX = 70; // commit threshold
+    const maxRot = 10;     // degrees
+
+    el.addEventListener("pointerdown", (e) => {
+      active = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      lastDx = 0;
+      el.setPointerCapture?.(e.pointerId);
+    });
+
+    el.addEventListener("pointermove", (e) => {
+      if (!active) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      // if mostly vertical, let it behave like scroll — cancel visuals
+      if (Math.abs(dy) > 110 && Math.abs(dx) < 40) return;
+
+      lastDx = dx;
+
+      const dir = dx < 0 ? "left" : "right";
+      const intensity = Math.min(1, Math.abs(dx) / thresholdX);
+      const rotDeg = (dx / 320) * maxRot;
+
+      handlers.onIntent?.(dir, intensity);
+      handlers.onDrag?.(dx, rotDeg);
+    });
+
+    el.addEventListener("pointerup", (e) => {
+      if (!active) return;
+      active=false;
+
+      const dx = lastDx;
+      const dir = dx < 0 ? "left" : "right";
+      const rotDeg = (dx / 320) * maxRot;
+
+      if (Math.abs(dx) >= thresholdX){
+        handlers.onCommit?.(dir, dx, rotDeg);
+      } else {
+        handlers.onCancel?.();
+      }
+    });
+
+    el.addEventListener("pointercancel", () => {
+      if (!active) return;
+      active=false;
+      handlers.onCancel?.();
+    });
+  }
+
+  // Start
+  renderIntro();
+</script>
+</body>
+</html>
